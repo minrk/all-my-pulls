@@ -158,7 +158,7 @@ var User = React.createClass({
     function handleMoreRepos(resp) {
       if (resp.headers.link !== undefined) {
         var nextUrl = getNextPage(resp.headers.link);
-        if (false && nextUrl) {
+        if (nextUrl) {
           user._request('GET', nextUrl).then(handleMoreRepos);
         }
       }
@@ -166,7 +166,7 @@ var User = React.createClass({
         repos: that.state.repos.concat(resp.data)
       });
     }
-    user._request('GET', '/user/repos', {sort: 'updated'}).then(handleMoreRepos);
+    user._request('GET', '/user/repos').then(handleMoreRepos);
   },
 });
 
