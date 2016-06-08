@@ -8,7 +8,7 @@
 
 a.pr-link {
   color: inherit;
-  &:hover {
+  :hover {
     text-decoration: none;
   };
 }

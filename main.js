@@ -14,6 +14,8 @@ function getNextPage(linksHeader) {
 var PullRequest = React.createClass({
   displayName: 'PullRequest',
   render: function() {
+    var updated = moment(this.props.data.updated_at).fromNow();
+    var created = moment(this.props.data.created_at).fromNow();
     return (
       <div className="row pull-request">
         <a href={this.props.data.html_url} className="pr-link col-xs-12">
@@ -24,11 +26,11 @@ var PullRequest = React.createClass({
             <div className='pr-subtitle col-xs-12'>
               #{this.props.data.number}
               { " " }
-              opened {this.props.data.created_at}
+              opened {created}
               { " " }
               by @{this.props.data.user.login}
               <br/>
-              Updated {this.props.data.updated_at}
+              Updated {updated}
             </div>
           </div>
         </a>
