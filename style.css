@@ -1,3 +1,45 @@
 .hidden {
   display: none;
 }
+
+.pr-title-number {
+  background-color: ;
+}
+
+a.pr-link {
+  color: inherit;
+  &:hover {
+    text-decoration: none;
+  };
+}
+
+div.repo-title {
+  font-weight: bold;
+  font-size: 200%;
+  padding-top: 16px;
+  padding-bottom: 8px;
+}
+
+div.pull-request:nth-child(odd) > .row {
+  background-color: #ccc;
+}
+
+div.pull-request {
+  border-top: 1px solid #888;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+div.pull-request:hover {
+  background-color: #dde;
+}
+
+div.pr-title {
+  font-weight: bold;
+  font-size: 120%;
+}
+
+div.pr-subtitle {
+  color: #555;
+  text-decoration: italic;
+}

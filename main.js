@@ -15,33 +15,38 @@ var PullRequest = React.createClass({
   displayName: 'PullRequest',
   render: function() {
     return (
-      <div class="row">
-      <div className="pull-request">
-        <div>
-        <span>#{this.props.data.number}</span>
-        <span>{this.props.data.title}</span>
-        </div>
-        <div><a href="{this.props.data.html_url}">on GitHub</a></div>
-        <div class="author">Author: @{this.props.data.user.login}</div>
-        <div class="updated timestamp">Updated: {this.props.data.updated_at}</div>
-        <div class="updated timestamp">Created: {this.props.data.created_at}</div>
-      </div>
+      <div className="row pull-request">
+        <a href={this.props.data.html_url} className="pr-link col-xs-12">
+          <div className="row">
+            <div className='pr-title col-xs-12'>{this.props.data.title}</div>
+          </div>
+          <div className="row">
+            <div className='pr-subtitle col-xs-12'>
+              #{this.props.data.number}
+              { " " }
+              opened {this.props.data.created_at}
+              { " " }
+              by @{this.props.data.user.login}
+              <br/>
+              Updated {this.props.data.updated_at}
+            </div>
+          </div>
+        </a>
       </div>
     )
   },
 });
+
 
 var PullRequestList = React.createClass({
   displayName: 'PullRequestList',
   render: function() {
     var that = this;
     var prNodes = this.props.data.map(function (pr_data) {
-      console.log(pr_data);
       return (
         <PullRequest key={pr_data.id} data={pr_data} github={github} />
       )
     });
-    console.log('prs', prNodes.length);
     return (
       <div className="prList">
         {prNodes}
@@ -64,18 +69,21 @@ var Repo = React.createClass({
   },
   render: function() {
     return (
-      <div className="repo {this.state.css_classes}">
-      <div>
+      <div className="row">
+      <div className={this.state.css_classes + ' repo'}>
+      <div className="repo-title">
       {this.props.data.full_name}
       </div>
       <PullRequestList github={this.props.github} data={this.state.pulls} />
       </div>
+      </div>
     )
   },
   loadPulls: function () {
+    // skip those with no issues
+    if (this.props.data.open_issues_count === 0) return;
     var that = this;
     this.props.github.getRepo(this.props.data.full_name).listPullRequests().then(function(resp) {
-      console.log("load pulls", resp);
       that.setState({
         pulls: resp.data,
         css_classes: resp.data.length === 0 ? 'hidden' : '',
@@ -93,12 +101,15 @@ var RepoList = React.createClass({
       )
     });
     return (
-      <div className="repoList">
+      <div className='row'>
+      <div className="repoList col-xs-12">
       {repoNodes}
+      </div>
       </div>
     )
   }
 });
+
 
 var User = React.createClass({
   displayName: 'User',
@@ -118,7 +129,7 @@ var User = React.createClass({
       <div className="user">
         Showing all pull requests mergeable by
       <span className="username">
-      @{this.state.profile.name}
+      {" "} @{this.state.profile.login}
       </span>
       <RepoList data={this.state.repos} github={github} />
       </div>
@@ -128,7 +139,7 @@ var User = React.createClass({
     var that = this;
     this.props.user.getProfile().then(function (profile) {
       that.setState({
-        name: profile.data.login
+        profile: profile.data
       });
     });
   },
@@ -140,7 +151,7 @@ var User = React.createClass({
     function handleMoreRepos(resp) {
       if (resp.headers.link !== undefined) {
         var nextUrl = getNextPage(resp.headers.link);
-        if (nextUrl) {
+        if (false && nextUrl) {
           user._request('GET', nextUrl).then(handleMoreRepos);
         }
       }
@@ -152,23 +163,57 @@ var User = React.createClass({
   },
 });
 
+
+var RateLimit = React.createClass({
+  displayName: 'RateLimit',
+  render: function() {
+    var reset_date = (new Date(this.props.data.rate.reset * 1000)).toLocaleString();
+    return (
+      <div className="row">
+        <h2 className="rate-limit-error col-xs-12">
+        Rate limit exceeded! Try again after {reset_date}.
+        </h2>
+      </div>
+    )
+  },
+});
+
+
 var code_match = window.location.href.match(/\?code=(.*)/);
 if (!code_match) {
   window.location = "https://github.com/login/oauth/authorize?scope=read:org&client_id=19277e98ad9400d0133b&redirect_uri=" + window.location;
-}
-var code = code_match[1];
-// scrub OAuth code
-window.history.replaceState("not sure", "All My Pulls", window.location.pathname);
-
-$.getJSON('https://minrk-github-oauth.herokuapp.com/authenticate/'+code, function(data) {
-  console.log(data);
-  var github = window.github = new GitHub({
-    token: data.token
-  });
+} else {
+  var code = code_match[1];
+  // scrub OAuth code from URL
+  window.history.replaceState("not sure", "All My Pulls", window.location.pathname);
   
-  var user = github.getUser();
-  ReactDOM.render(
-    <User github={github} user={user} data={data} />,
-    document.getElementById('content')
-  );
-});
+  // request OAuth token
+  $.getJSON('https://minrk-github-oauth.herokuapp.com/authenticate/' + code, function(data) {
+    // create GitHub client
+    var github = window.github = new GitHub({
+      token: data.token
+    });
+    
+    // check rateLimit, then proceed
+    github.getRateLimit().getRateLimit().then(function(resp) {
+      console.log('API limit remaining: ' + resp.data.rate.remaining);
+      // date constructor takes epoch milliseconds and we get epoch seconds
+      if (resp.data.rate.remaining === 0) {
+        // don't burn the rate limit
+        ReactDOM.render(
+          <RateLimit data={resp.data} />,
+          document.getElementById('content')
+        );
+        return;
+      }
+
+      var user = github.getUser();
+      ReactDOM.render(
+        <User github={github} user={user} data={data}/>,
+        document.getElementById('content')
+      );
+    }).catch(function(error) {
+        console.log('Error fetching rate limit', error.message);
+    });
+  });
+}
