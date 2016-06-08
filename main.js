@@ -80,8 +80,6 @@ var Repo = React.createClass({
     )
   },
   loadPulls: function () {
-    // skip those with no issues
-    if (this.props.data.open_issues_count === 0) return;
     var that = this;
     this.props.github.getRepo(this.props.data.full_name).listPullRequests().then(function(resp) {
       that.setState({
@@ -96,9 +94,18 @@ var RepoList = React.createClass({
   displayName: 'RepoList',
   render: function() {
     var repoNodes = this.props.data.map(function (repo_data) {
+      // skip those with no issues
+      if (repo_data.open_issues_count === 0) return;
+      // skip those I can't push to (missing the point!)
+      if (!repo_data.permissions.push) return;
+      
       return (
         <Repo key={repo_data.full_name} data={repo_data} github={github} />
       )
+    });
+    // filter out undefined
+    repoNodes = repoNodes.filter(function (data) {
+      return (data !== undefined);
     });
     return (
       <div className='row'>
