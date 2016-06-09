@@ -167,7 +167,7 @@ var User = React.createClass({
         // to limit wasted API calls
         var updated = new Date(repo.updated_at);
         var today = new Date();
-        var years_ago = (today - updated) / 31556926;
+        var years_ago = (today - updated) / 31556926000;
         if (years_ago > 2) return false;
         return true;
       })
