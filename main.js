@@ -78,7 +78,25 @@ var PullRequestList = React.createClass({
   },
   render: function() {
     var that = this;
-    var prNodes = this.state.pulls.map(function (pr_data) {
+    
+    // apply exclusions
+    var pulls = this.state.pulls.filter(function (pr_data) {
+      var repo = pr_data.base.repo;
+      for (var exclusion, i = 0; i < that.props.exclusions.length; i++) {
+        exclusion = that.props.exclusions[i];
+        console.log(repo, exclusion);
+        if (exclusion.indexOf('/') !== -1) {
+          // repo exclusion
+          if (repo.full_name === exclusion) return false;
+        } else {
+          // org exclusion
+          if (repo.owner.login === exclusion) return false;
+        }
+      }
+      return true;
+    });
+    
+    var prNodes = pulls.map(function (pr_data) {
       return (
         <PullRequest key={pr_data.id} data={pr_data} github={github} />
       )
@@ -122,9 +140,18 @@ var PullRequestList = React.createClass({
 var User = React.createClass({
   displayName: 'User',
   getInitialState: function() {
+    var exclusions = ['my-org', 'my-org/repo', 'conda-forge/staged-recipes'];
+    if (localStorage.all_my_pulls_exclusions) {
+      try {
+        exclusions = JSON.parse(localStorage.all_my_pulls_exclusions);
+      } catch (e) {
+        console.error("Failed to load exclusions from localStorage");
+      }
+    }
     return {
       repos: [],
       profile: {},
+      exclusions: exclusions,
     };
   },
   componentDidMount: function() {
@@ -141,9 +168,15 @@ var User = React.createClass({
           {" "} @{this.state.profile.login}
           </span>
         </h2>
-        <PullRequestList repos={this.state.repos} github={github} />
+        Repos/orgs to exclude:
+        <ReactTagsInput value={this.state.exclusions} onChange={this.handleExclusionsChange} />
+        <PullRequestList repos={this.state.repos} exclusions={this.state.exclusions} github={github} />
       </div>
     )
+  },
+  handleExclusionsChange: function(value) {
+    this.setState({exclusions: value});
+    localStorage.all_my_pulls_exclusions = JSON.stringify(value);
   },
   loadProfile: function () {
     var that = this;

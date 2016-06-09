@@ -50,3 +50,21 @@ div.pr-subtitle {
   font-size: 12px;
   text-decoration: italic;
 }
+
+/* tags */
+
+.react-tagsinput-tag {
+  color: inherit;
+  border-color: #ccc;
+  background-color: #dee;
+}
+.react-tagsinput--focused {
+  border-color: #dde;
+}
+.react-tagsinput-remove {
+  color: inherit;
+}
+
+.react-tagsinput-input {
+  width: 200px;
+}
