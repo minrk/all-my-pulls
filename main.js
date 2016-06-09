@@ -1,3 +1,12 @@
+var DEBUG = (window.location.hostname == 'local.minrk.net');
+if (DEBUG) {
+  var client_id = '339cf6a31b24852a37a1';
+  var auth_host = 'all-my-pulls-auth-debug.herokuapp.com';
+} else {
+  var client_id = '19277e98ad9400d0133b';
+  var auth_host = 'all-my-pulls-auth.herokuapp.com';
+}
+
 function getNextPage(linksHeader) {
   // from github.js Requestable.js
   var links = linksHeader.split(/\s*,\s*/); // splits and strips the urls
@@ -197,14 +206,14 @@ var RateLimit = React.createClass({
 
 var code_match = window.location.href.match(/\?code=(.*)/);
 if (!code_match) {
-  window.location = "https://github.com/login/oauth/authorize?scope=read:org&client_id=19277e98ad9400d0133b&redirect_uri=" + window.location;
+  window.location = 'https://github.com/login/oauth/authorize?scope=read:org&client_id=' + client_id + '&redirect_uri=' + window.location;
 } else {
   var code = code_match[1];
   // scrub OAuth code from URL
   window.history.replaceState("not sure", "All My Pulls", window.location.pathname);
   
   // request OAuth token
-  $.getJSON('https://minrk-github-oauth.herokuapp.com/authenticate/' + code, function(data) {
+  $.getJSON('https://' + auth_host + '/authenticate/' + code, function(data) {
     // create GitHub client
     var github = window.github = new GitHub({
       token: data.token
