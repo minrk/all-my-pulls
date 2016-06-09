@@ -158,8 +158,17 @@ var User = React.createClass({
       }
       // filter out repos we can't push to and don't have open issues
       var new_repos = resp.data.filter(function (repo) {
+        // exclude repos I can't push to
+        // it doesn't seem like these should show up in this list, but some org repos do
         if (!repo.permissions.push) return false;
+        // exclude repos with no issues
         if (repo.open_issues_count === 0) return false;
+        // exclude repos not updated in 2 years,
+        // to limit wasted API calls
+        var updated = new Date(repo.updated_at);
+        var today = new Date();
+        var years_ago = (today - updated) / 31556926;
+        if (years_ago > 2) return false;
         return true;
       })
       that.setState({
