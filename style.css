@@ -2,10 +2,6 @@
   display: none;
 }
 
-.pr-title-number {
-  background-color: ;
-}
-
 a.pr-link {
   color: inherit;
   :hover {
@@ -13,15 +9,19 @@ a.pr-link {
   };
 }
 
-div.repo-title {
-  font-weight: bold;
-  font-size: 200%;
-  padding-top: 16px;
-  padding-bottom: 8px;
+h1 {
+  font-size: 32px;
+}
+h2 {
+  font-size: 20px;
 }
 
-div.pull-request:nth-child(odd) > .row {
-  background-color: #ccc;
+div.prList {
+  margin-top: 20px;
+}
+
+div.prList > .row:nth-child(odd) {
+  background-color: #f8f8fc;
 }
 
 div.pull-request {
@@ -34,12 +34,19 @@ div.pull-request:hover {
   background-color: #dde;
 }
 
-div.pr-title {
+div.pr-title-row {
   font-weight: bold;
-  font-size: 120%;
+  color: #333;
+  font-size: 15px;
+}
+
+span.pr-repo-name {
+  color: #767676;
+  margin-right: 1ex;
 }
 
 div.pr-subtitle {
   color: #555;
+  font-size: 12px;
   text-decoration: italic;
 }

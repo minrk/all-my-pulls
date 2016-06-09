@@ -16,24 +16,36 @@ var PullRequest = React.createClass({
   render: function() {
     var updated = moment(this.props.data.updated_at).fromNow();
     var created = moment(this.props.data.created_at).fromNow();
+    var milestone = (this.props.data.milestone && this.props.data.milestone.title);
     return (
-      <div className="row pull-request">
-        <a href={this.props.data.html_url} className="pr-link col-xs-12">
-          <div className="row">
-            <div className='pr-title col-xs-12'>{this.props.data.title}</div>
-          </div>
-          <div className="row">
-            <div className='pr-subtitle col-xs-12'>
-              #{this.props.data.number}
-              { " " }
-              opened {created}
-              { " " }
-              by @{this.props.data.user.login}
-              <br/>
-              Updated {updated}
+      <div className="row">
+        <div className="pull-request col-xs-12">
+          <a href={this.props.data.html_url} className="pr-link col-xs-12">
+            <div className="row">
+              <div className='pr-title-row col-xs-12'>
+                <span className='pr-repo-name'>
+                  {this.props.data.base.repo.full_name}
+                </span>
+                <span className='pr-title'>
+                  {this.props.data.title}
+                </span>
+              </div>
             </div>
-          </div>
-        </a>
+            <div className="row">
+              <div className='pr-subtitle col-xs-12'>
+                #{this.props.data.number}
+                { " " }
+                opened {created}
+                { " " }
+                by @{this.props.data.user.login}
+                { " " }
+                {milestone}
+                <br/>
+                Updated {updated}
+              </div>
+            </div>
+          </a>
+        </div>
       </div>
     )
   },
@@ -42,81 +54,59 @@ var PullRequest = React.createClass({
 
 var PullRequestList = React.createClass({
   displayName: 'PullRequestList',
+  getInitialState: function() {
+    return {
+      pulls: [],
+      loadedRepos: {},
+    };
+  },
+  componentDidMount: function() {
+    this.fetchNewPulls(this.props.repos);
+  },
+  componentWillReceiveProps: function (props) {
+    // on updated props, update PRs
+    this.fetchNewPulls(props.repos);
+  },
   render: function() {
     var that = this;
-    var prNodes = this.props.data.map(function (pr_data) {
+    var prNodes = this.state.pulls.map(function (pr_data) {
       return (
         <PullRequest key={pr_data.id} data={pr_data} github={github} />
       )
+    });
+    // sort by updated:
+    prNodes.sort(function (prA, prB) {
+      var a = prA.props.data.updated_at;
+      var b = prB.props.data.updated_at;
+      if (a > b) return -1;
+      if (b > a) return 1;
+      return 0;
     });
     return (
       <div className="prList">
         {prNodes}
       </div>
     )
-  }
-});
-
-
-var Repo = React.createClass({
-  displayName: 'Repo',
-  getInitialState: function() {
-    return {
-      pulls: [],
-      css_classes: 'hidden',
-    };
   },
-  componentDidMount: function() {
-    this.loadPulls();
-  },
-  render: function() {
-    return (
-      <div className="row">
-      <div className={this.state.css_classes + ' repo'}>
-      <div className="repo-title">
-      {this.props.data.full_name}
-      </div>
-      <PullRequestList github={this.props.github} data={this.state.pulls} />
-      </div>
-      </div>
-    )
-  },
-  loadPulls: function () {
+  fetchNewPulls: function (repos) {
+    // fetch PRs for repos we haven't seen before
     var that = this;
-    this.props.github.getRepo(this.props.data.full_name).listPullRequests().then(function(resp) {
+    repos.map(function (repo) {
+      if (!that.state.loadedRepos[repo.full_name]) {
+        that.loadPulls(repo);
+      }
+    })
+  },
+  loadPulls: function(repo) {
+    // load pull-requests for a single repo
+    var that = this;
+    this.state.loadedRepos[repo.full_name] = true;
+    this.props.github.getRepo(repo.full_name).listPullRequests().then(function(resp) {
       that.setState({
-        pulls: resp.data,
-        css_classes: resp.data.length === 0 ? 'hidden' : '',
+        pulls: that.state.pulls.concat(resp.data),
       })
     })
-  }
-});
-
-var RepoList = React.createClass({
-  displayName: 'RepoList',
-  render: function() {
-    var repoNodes = this.props.data.map(function (repo_data) {
-      // skip those with no issues
-      if (repo_data.open_issues_count === 0) return;
-      // skip those I can't push to (missing the point!)
-      if (!repo_data.permissions.push) return;
-      
-      return (
-        <Repo key={repo_data.full_name} data={repo_data} github={github} />
-      )
-    });
-    // filter out undefined
-    repoNodes = repoNodes.filter(function (data) {
-      return (data !== undefined);
-    });
-    return (
-      <div className='row'>
-      <div className="repoList col-xs-12">
-      {repoNodes}
-      </div>
-      </div>
-    )
-  }
+  },
 });
 
 
@@ -136,11 +126,13 @@ var User = React.createClass({
   render: function() {
     return (
       <div className="user">
-        Showing all pull requests mergeable by
-      <span className="username">
-      {" "} @{this.state.profile.login}
-      </span>
-      <RepoList data={this.state.repos} github={github} />
+        <h2 className="text-center">
+          Showing all GitHub pull requests mergeable by
+          <span className="username">
+          {" "} @{this.state.profile.login}
+          </span>
+        </h2>
+        <PullRequestList repos={this.state.repos} github={github} />
       </div>
     )
   },
@@ -164,11 +156,17 @@ var User = React.createClass({
           user._request('GET', nextUrl).then(handleMoreRepos);
         }
       }
+      // filter out repos we can't push to and don't have open issues
+      var new_repos = resp.data.filter(function (repo) {
+        if (!repo.permissions.push) return false;
+        if (repo.open_issues_count === 0) return false;
+        return true;
+      })
       that.setState({
-        repos: that.state.repos.concat(resp.data)
+        repos: that.state.repos.concat(new_repos),
       });
     }
-    user._request('GET', '/user/repos').then(handleMoreRepos);
+    user._request('GET', '/user/repos', {sort: 'updated'}).then(handleMoreRepos);
   },
 });
 
@@ -180,7 +178,7 @@ var RateLimit = React.createClass({
     return (
       <div className="row">
         <h2 className="rate-limit-error col-xs-12">
-        Rate limit exceeded! Try again after {reset_date}.
+        GitHub API Rate limit exceeded! Try again after {reset_date}.
         </h2>
       </div>
     )
