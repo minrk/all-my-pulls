@@ -229,13 +229,11 @@ var User = React.createClass({
 var RateLimit = React.createClass({
   displayName: 'RateLimit',
   render: function() {
-    var reset_date = (new Date(this.props.data.rate.reset * 1000)).toLocaleString();
+    var reset_date = new Date(this.props.data.rate.reset * 1000);
     return (
-      <div className="row">
-        <h2 className="rate-limit-error col-xs-12">
-        GitHub API Rate limit exceeded! Try again after {reset_date}.
-        </h2>
-      </div>
+      <h2 className="rate-limit-error text-center">
+      GitHub API Rate limit exceeded! Try again {moment(reset_date).fromNow()}.
+      </h2>
     )
   },
 });
