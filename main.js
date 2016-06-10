@@ -29,30 +29,26 @@ var PullRequest = React.createClass({
     return (
       <div className="row">
         <div className="pull-request col-xs-12">
-          <a href={this.props.data.html_url} className="pr-link col-xs-12">
-            <div className="row">
-              <div className='pr-title-row col-xs-12'>
-                <span className='pr-repo-name'>
-                  {this.props.data.base.repo.full_name}
-                </span>
-                <span className='pr-title'>
-                  {this.props.data.title}
-                </span>
-              </div>
-            </div>
-            <div className="row">
-              <div className='pr-subtitle col-xs-12'>
-                #{this.props.data.number}
-                { " " }
-                opened {created}
-                { " " }
-                by @{this.props.data.user.login}
-                { " " }
-                {milestone}
-                <br/>
-                Updated {updated}
-              </div>
-            </div>
+          <a href={this.props.data.html_url} className="pr-link">
+          <div className='pr-title-row'>
+            <span className='pr-repo-name'>
+              {this.props.data.base.repo.full_name}
+            </span>
+            <span className='pr-title'>
+              {this.props.data.title}
+            </span>
+          </div>
+          <div className='pr-subtitle'>
+            #{this.props.data.number}
+            { " " }
+            opened {created}
+            { " " }
+            by @{this.props.data.user.login}
+            { " " }
+            {milestone}
+            <br/>
+            Updated {updated}
+          </div>
           </a>
         </div>
       </div>
