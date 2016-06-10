@@ -172,7 +172,7 @@ var User = React.createClass({
           {" "} @{this.state.profile.login}
           </span>
         </h2>
-        Repos/orgs to exclude:
+        orgs/repos to exclude:
         <ReactTagsInput value={this.state.exclusions} onChange={this.handleExclusionsChange} />
         <PullRequestList repos={this.state.repos} exclusions={this.state.exclusions} github={github} />
       </div>
