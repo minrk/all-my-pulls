@@ -63,7 +63,6 @@ var PullRequestList = React.createClass({
     return {
       pulls: [],
       loadedRepos: {},
-      hasPulls: {},
     };
   },
   componentDidMount: function() {
@@ -76,6 +75,7 @@ var PullRequestList = React.createClass({
   render: function() {
     var that = this;
     
+    var reposWithPulls = {};
     // apply exclusions
     var pulls = this.state.pulls.filter(function (pr_data) {
       var repo = pr_data.base.repo;
@@ -89,6 +89,7 @@ var PullRequestList = React.createClass({
           if (repo.owner.login === exclusion) return false;
         }
       }
+      reposWithPulls[repo.full_name] = true;
       return true;
     });
     
@@ -108,7 +109,7 @@ var PullRequestList = React.createClass({
     return (
       <div className="prList">
         <div className="">
-        {this.state.pulls.length} pull requests in {Object.keys(this.state.hasPulls).length} repos
+        {pulls.length} pull requests in {Object.keys(reposWithPulls).length} repos
         </div>
         {prNodes}
       </div>
@@ -128,13 +129,8 @@ var PullRequestList = React.createClass({
     var that = this;
     this.state.loadedRepos[repo.full_name] = true;
     this.props.github.getRepo(repo.full_name).listPullRequests().then(function(resp) {
-      var hasPulls = that.state.hasPulls;
-      if (resp.data.length) {
-        hasPulls[repo.full_name] = true;
-      }
       that.setState({
         pulls: that.state.pulls.concat(resp.data),
-        hasPulls: hasPulls,
       })
     })
   },
