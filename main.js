@@ -37,9 +37,10 @@ var PullRequest = React.createClass({
             <span className='pr-title'>
               {this.props.data.title}
             </span>
-        <span className={(this.props.data.status === 'failure') ? 'label label-danger'
-                         : (this.props.data.status === 'failure') ? 'label label-warning'
-                         : 'hidden'}>
+        <span className={(this.props.data.status === 'success') ? 'label label-success'
+                         : (this.props.data.status === 'failure') ? 'label label-danger'
+                         : (this.props.data.status === 'pending') ? 'label label-warning'
+                         : 'label label-default'}>
               {this.props.data.status}
             </span>
           </div>
@@ -144,12 +145,12 @@ var PullRequestList = React.createClass({
     }).then(function (result) {
       result.map(function (resp, i) {
         var statuses = resp.data
-        if (!statuses) return
+        statuses = statuses || []
         closure.pulls[i].status = (
           (statuses[0].state === 'success') ? 'success'
             : (statuses.some(elem => elem.state === 'failure')) ? 'failure'
-            : (statuses.some(elem => elem.state === 'pending')) ? 'pending'
-            : undefined
+            : (statuses.some(elem => elem.state === 'pending') || statuses.length === 0) ? 'pending'
+            : 'N/A'
         )
       })
     }).then(function() {
