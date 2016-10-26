@@ -37,6 +37,12 @@ var PullRequest = React.createClass({
             <span className='pr-title'>
               {this.props.data.title}
             </span>
+        <span className={(this.props.data.status === 'success') ? 'label label-success'
+                         : (this.props.data.status === 'failure') ? 'label label-danger'
+                         : (this.props.data.status === 'pending') ? 'label label-warning'
+                         : 'label label-default'}>
+              {this.props.data.status}
+            </span>
           </div>
           <div className='pr-subtitle'>
             #{this.props.data.number}
@@ -127,10 +133,29 @@ var PullRequestList = React.createClass({
   loadPulls: function(repo) {
     // load pull-requests for a single repo
     var that = this;
+    var closure = {}
     this.state.loadedRepos[repo.full_name] = true;
     this.props.github.getRepo(repo.full_name).listPullRequests().then(function(resp) {
+      closure.pulls = resp.data
+      var getStatuses = []
+      for (var i = 0; i < closure.pulls.length; i++) {
+        getStatuses.push(that.props.github.getRepo(repo.full_name).listStatuses(closure.pulls[i].head.sha))
+      }
+      return Promise.all(getStatuses)
+    }).then(function (result) {
+      result.map(function (resp, i) {
+        var statuses = resp.data
+        statuses = statuses || []
+        closure.pulls[i].status = (
+          (statuses[0].state === 'success') ? 'success'
+            : (statuses.some(elem => elem.state === 'failure')) ? 'failure'
+            : (statuses.some(elem => elem.state === 'pending') || statuses.length === 0) ? 'pending'
+            : 'N/A'
+        )
+      })
+    }).then(function() {
       that.setState({
-        pulls: that.state.pulls.concat(resp.data),
+        pulls: that.state.pulls.concat(closure.pulls)
       })
     })
   },

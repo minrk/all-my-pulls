@@ -51,6 +51,10 @@ div.pr-title-row {
   font-size: 15px;
 }
 
+div.pr-title-row .label {
+  margin-left: 10px;
+}
+
 span.pr-repo-name {
   color: #767676;
   margin-right: 1ex;
