@@ -260,7 +260,7 @@ var RateLimit = React.createClass({
 });
 
 
-var code_match = window.location.href.match(/\?code=(.*)/);
+var code_match = window.location.search.match(/[\?&]code=([^&]+)/);
 if (!code_match) {
   window.location = 'https://github.com/login/oauth/authorize?scope=read:org&client_id=' + client_id + '&redirect_uri=' + window.location;
 } else {
@@ -270,6 +270,13 @@ if (!code_match) {
   
   // request OAuth token
   $.getJSON('https://' + auth_host + '/authenticate/' + code, function(data) {
+    // check response
+    if (!data.token) {
+      console.error("Failed to login with GitHub, code:", code);
+      console.error("Response:", data);
+      alert("Failed to login with GitHub: " + JSON.stringify(data));
+      return;
+    }
     // create GitHub client
     var github = window.github = new GitHub({
       token: data.token
