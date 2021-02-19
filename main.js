@@ -52,36 +52,80 @@ function shouldIncludeRepo(repo, inclusions, exclusions) {
 var PullRequest = React.createClass({
   displayName: "PullRequest",
   render: function () {
-    var updated = moment(this.props.data.updated_at).fromNow();
-    var created = moment(this.props.data.created_at).fromNow();
-    var milestone =
-      this.props.data.milestone && this.props.data.milestone.title;
+    var pr = this.props.data;
+    var updated = moment(pr.updated_at).fromNow();
+    var created = moment(pr.created_at).fromNow();
+    var milestone = pr.milestone && pr.milestone.title;
+
+    var assigned;
+    if (pr.assignedToMe) {
+      assigned = (
+        <span className="label label-success pull-right">
+          assigned to {this.props.user.login}
+        </span>
+      );
+    } else if (pr.assigned) {
+      // var assignees = pr.assignees.map((u) => u.login).join(",");
+      // Just one? If accepting multiples, should truncate
+      assigned = (
+        <span className="label label-default pull-right">
+          assigned to {pr.assignees[0].login}
+        </span>
+      );
+    } else {
+      assigned = (
+        <span className="label label-warning pull-right">unassigned</span>
+      );
+    }
+
+    var review;
+    if (pr.reviewFromMe) {
+      review = (
+        <span className="label label-danger pull-right">review requested</span>
+      );
+    } else if (pr.outstanding_reviewers.length > 0) {
+      review = (
+        <span className="label label-warning pull-right">
+          awaiting review by {pr.outstanding_reviewers.join(",")}
+        </span>
+      );
+    } else if (pr.reviewers.length > 0) {
+      review = (
+        <span className="label label-success pull-right">
+          reviewed by {pr.reviewers.join(",")}
+        </span>
+      );
+    } else {
+      review = (
+        <span className="label label-warning pull-right">no reviews</span>
+      );
+    }
+
     return (
       <div className="row">
         <div className="pull-request col-xs-12">
-          <a href={this.props.data.html_url} className="pr-link">
+          <a href={pr.html_url} className="pr-link">
             <div className="pr-title-row">
-              <span className="pr-repo-name">
-                {this.props.data.base.repo.full_name}
-              </span>
-              <span className="pr-title">{this.props.data.title}</span>
+              <span className="pr-repo-name">{pr.base.repo.full_name}</span>
+              <span className="pr-title">{pr.title}</span>
               <span
                 className={
-                  this.props.data.status === "success"
+                  pr.status === "success"
                     ? "label label-success"
-                    : this.props.data.status === "failure"
+                    : pr.status === "failure"
                     ? "label label-danger"
-                    : this.props.data.status === "pending"
+                    : pr.status === "pending"
                     ? "label label-warning"
                     : "label label-default"
                 }
               >
-                {this.props.data.status}
+                {pr.status}
               </span>
+              {assigned}
+              {review}
             </div>
             <div className="pr-subtitle">
-              #{this.props.data.number} opened {created} by @
-              {this.props.data.user.login} {milestone}
+              #{pr.number} opened {created} by @{pr.user.login} {milestone}
               <br />
               Updated {updated}
             </div>
@@ -91,6 +135,27 @@ var PullRequest = React.createClass({
     );
   },
 });
+
+function prSortKey(pr, user) {
+  // sort:
+  // assigned to me
+  // review requested of me
+  // unassigned
+  // assigned to someone else
+  //
+  var key = [];
+  var assigned = pr.assignees.length > 0;
+  var assignedToMe = pr.assignees.some((u) => u.id === user.id);
+  var hasReviewers = pr.reviews.length + pr.requested_reviewers.length > 0;
+  var reviewFromMe = pr.requested_reviewers.some((u) => u.id === user.id);
+  return [
+    pr.assignedToMe,
+    pr.reviewFromMe,
+    -pr.assigned,
+    -hasReviewers,
+    pr.updated_at,
+  ];
+}
 
 var PullRequestList = React.createClass({
   displayName: "PullRequestList",
@@ -124,16 +189,30 @@ var PullRequestList = React.createClass({
     });
 
     var prNodes = pulls.map(function (pr_data) {
-      return <PullRequest key={pr_data.id} data={pr_data} github={github} />;
+      return (
+        <PullRequest
+          key={pr_data.id}
+          data={pr_data}
+          github={github}
+          user={that.props.user}
+        />
+      );
     });
-    // sort by updated:
-    prNodes.sort(function (prA, prB) {
-      var a = prA.props.data.updated_at;
-      var b = prB.props.data.updated_at;
-      if (a > b) return -1;
-      if (b > a) return 1;
+    // sort by
+    // 2. review requested of me
+    // 1. assigned to me
+    updated: prNodes.sort(function (prA, prB) {
+      var aKey = prSortKey(prA.props.data, that.props.user);
+      var bKey = prSortKey(prB.props.data, that.props.user);
+      for (var i = 0; i < aKey.length; i += 1) {
+        var a = aKey[i];
+        var b = bKey[i];
+        if (a > b) return -1;
+        if (b > a) return 1;
+      }
       return 0;
     });
+
     return (
       <div className="prList">
         <div className="">
@@ -167,8 +246,9 @@ var PullRequestList = React.createClass({
       .getRepo(repo.full_name)
       .listPullRequests()
       .then(function (resp) {
-        closure.pulls = resp.data;
-        var getStatuses = [];
+        var pulls = (closure.pulls = resp.data);
+
+        var requests = [];
         // todo: include check-runs?
         function getPRStatus(pr) {
           return that.props.github
@@ -189,10 +269,42 @@ var PullRequestList = React.createClass({
                   : "unknown";
             });
         }
-        for (var i = 0; i < closure.pulls.length; i++) {
-          getStatuses.push(getPRStatus(closure.pulls[i]));
+        function getPRReviews(pr) {
+          // load reviews from reviews API
+          return that.props.github
+            .getRepo(repo.full_name)
+            ._request(
+              "GET",
+              `/repos/${repo.full_name}/pulls/${pr.number}/reviews`
+            )
+            .then(function (resp) {
+              var reviews = resp.data || [];
+              pr.reviews = reviews;
+              var requested_reviewers = pr.requested_reviewers.map(
+                (reviewer) => reviewer.login
+              );
+              pr.reviewers = [
+                ...new Set(pr.reviews.map((review) => review.user.login)),
+              ];
+              pr.outstanding_reviewers = requested_reviewers.filter((name) => {
+                pr.reviewers.indexOf(name) < 0;
+              });
+              pr.reviewFromMe = pr.requested_reviewers.some(
+                (u) => u.id === that.props.user.id
+              );
+            });
         }
-        return Promise.all(getStatuses);
+        for (var i = 0; i < closure.pulls.length; i++) {
+          var pr = closure.pulls[i];
+          pr.assigned = pr.assignees.length > 0;
+          pr.assignedToMe = pr.assignees.some(
+            (u) => u.id === that.props.user.id
+          );
+
+          requests.push(getPRStatus(pr));
+          requests.push(getPRReviews(pr));
+        }
+        return Promise.all(requests);
       })
 
       .then(function () {
@@ -240,7 +352,7 @@ var User = React.createClass({
           Showing all GitHub pull requests mergeable by
           <span className="username"> @{this.state.profile.login}</span>
         </h2>
-        orgs/repos to <i>include</i>:
+        Only include these orgs/repos:
         <ReactTagsInput
           value={this.state.inclusions}
           onChange={this.handleInclusionsChange}
@@ -251,6 +363,7 @@ var User = React.createClass({
           onChange={this.handleExclusionsChange}
         />
         <PullRequestList
+          user={this.state.profile}
           repos={this.state.repos}
           inclusions={this.state.inclusions}
           exclusions={this.state.exclusions}
